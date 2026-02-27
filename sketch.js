@@ -15,6 +15,8 @@ let animType = "Drift";
 let animFPS = 60;
 let renderSeconds = 10;
 
+let xStep = 4;
+
 let rec = { recorder: null, chunks: [], recording: false, url: null };
 
 function hash01(n) {
@@ -28,7 +30,10 @@ function organicForLine(i) {
 
 function setup() {
   createCanvas(1920, 1080);
-  pixelDensity(1);
+
+  const dpr = window.devicePixelRatio || 1;
+  pixelDensity(Math.min(2, Math.max(1, dpr)));
+
   frameRate(animFPS);
 
   layers = [
@@ -45,19 +50,21 @@ function setup() {
 function draw() {
   background("#F5F5DC");
 
-  const spacingBase = ui.spacing.value();
+  spacing = ui.spacing.value();
+  xStep = ui.step.value();
+
   const dyn = computeAnim();
 
-  const spacingFinal = spacingBase + dyn.spacingDelta;
+  const spacingFinal = spacing + dyn.spacingDelta;
   const angleFinal = baseAngleDeg + dyn.angleDelta;
   const expoKFinal = baseExpoK + dyn.expoKDelta;
 
   if (ui.blend.checked()) blendMode(window[blendName] ?? DARKEST);
   else blendMode(BLEND);
 
-  if (ui.terraShow.checked()) layers[0].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0]);
-  if (ui.vinhoShow.checked()) layers[1].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1]);
-  if (ui.olivaShow.checked()) layers[2].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2]);
+  if (ui.terraShow.checked()) layers[0].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0], xStep);
+  if (ui.vinhoShow.checked()) layers[1].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1], xStep);
+  if (ui.olivaShow.checked()) layers[2].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2], xStep);
 
   blendMode(BLEND);
 
@@ -72,7 +79,7 @@ class Layer {
     this.baseVy = 0.7;
   }
 
-  draw(angleDeg, expoKValue, spacingValue, offset) {
+  draw(angleDeg, expoKValue, spacingValue, offset, step) {
     const vx = this.baseVx + offset.vx;
     const vy = this.baseVy + offset.vy;
 
@@ -93,9 +100,9 @@ class Layer {
 
       beginShape();
 
-      for (let x = -width; x <= width; x += 10) vertex(x, baseY);
+      for (let x = -width; x <= width; x += step) vertex(x, baseY);
 
-      for (let x = width; x >= -width; x -= 10) {
+      for (let x = width; x >= -width; x -= step) {
         const nx = map(x, -width, width, -1, 1);
         const dist = abs(nx - dynamicShift);
 
@@ -156,14 +163,22 @@ function buildPanelUI() {
   ui.panel.html(`
     <details open class="sec">
       <summary>Display</summary>
+
       <div class="row">
         <label>Spacing</label>
         <div id="spacingSlot"></div>
       </div>
+
+      <div class="row">
+        <label>Smooth</label>
+        <div id="stepSlot"></div>
+      </div>
+
       <div class="row">
         <label>Blend</label>
         <div id="blendSlot"></div>
       </div>
+
       <div class="row">
         <label>Export</label>
         <div class="export">
@@ -254,6 +269,9 @@ function buildPanelUI() {
   ui.spacing = createSlider(20, 100, spacing, 1);
   ui.spacing.parent(select("#spacingSlot"));
 
+  ui.step = createSlider(2, 16, xStep, 1);
+  ui.step.parent(select("#stepSlot"));
+
   ui.blend = createCheckbox(blendName, true);
   ui.blend.parent(select("#blendSlot"));
 
@@ -303,7 +321,6 @@ function injectGreyUIStyles() {
   const css = `
     body { margin:0; padding:0; background:#1e1e1e; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
     canvas { display:block; margin-left:260px; }
-
     #panel {
       position: fixed; left: 0; top: 0; bottom: 0;
       width: 240px; padding: 14px 10px;
@@ -311,43 +328,31 @@ function injectGreyUIStyles() {
       border-right: 1px solid #3a3a3a;
       overflow:auto;
     }
-
     .sec { margin: 10px 0; border: 1px solid #3a3a3a; border-radius: 10px; background:#262626; box-shadow: 0 1px 0 rgba(255,255,255,.03) inset; }
     .divider { height: 1px; background: #3a3a3a; margin: 12px 6px; border-radius: 999px; }
-
     summary { cursor:pointer; padding: 10px 10px; font-weight: 600; color:#f0f0f0; list-style: none; user-select: none; }
     summary::-webkit-details-marker { display:none; }
-
     .row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding: 8px 10px; }
     .row.tight { padding-top: 6px; padding-bottom: 6px; }
-
     .row label { font-size: 12px; color:#cfcfcf; letter-spacing: .2px; min-width: 56px; }
-
     #panel input, #panel select, #panel button { font: inherit; }
-
     input[type="range"] { width: 120px; accent-color: #9f9f9f; filter: grayscale(1); }
     input[type="checkbox"] { accent-color: #9f9f9f; transform: scale(1.05); filter: grayscale(1); }
-
     .btn {
       background:#3a3a3a; color:#eaeaea;
       border:1px solid #4a4a4a;
       padding: 6px 10px; border-radius: 8px;
       cursor:pointer; white-space: nowrap;
     }
-
     .btn:hover { background:#444; }
     .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
-
     .select {
       background:#2f2f2f; color:#eaeaea;
       border:1px solid #4a4a4a;
       padding: 6px 8px; border-radius: 8px;
     }
-
     .export { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-
     .status { font-size: 12px; color:#cfcfcf; text-align:right; flex: 1; }
-
     .vecwrap { padding: 10px; padding-top: 6px; }
     .vecwrap canvas {
       margin-left: 0 !important;
@@ -359,7 +364,6 @@ function injectGreyUIStyles() {
       transition: opacity 120ms ease;
     }
     .vecwrap canvas.locked { opacity: 0.35; }
-
     .videoSlot { width: 100%; }
     .videoSlot video {
       width: 100%;
@@ -505,6 +509,7 @@ function exportPNGScaled(scale = 1) {
   g.background("#F5F5DC");
 
   const spacingBase = ui.spacing.value();
+  const step = ui.step.value();
   const dyn = computeAnim();
 
   const spacingFinal = spacingBase + dyn.spacingDelta;
@@ -514,16 +519,16 @@ function exportPNGScaled(scale = 1) {
   if (ui.blend.checked()) g.blendMode(window[blendName] ?? DARKEST);
   else g.blendMode(BLEND);
 
-  if (ui.terraShow.checked()) drawLayerToGraphics(g, layers[0], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0]);
-  if (ui.vinhoShow.checked()) drawLayerToGraphics(g, layers[1], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1]);
-  if (ui.olivaShow.checked()) drawLayerToGraphics(g, layers[2], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2]);
+  if (ui.terraShow.checked()) drawLayerToGraphics(g, layers[0], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0], step);
+  if (ui.vinhoShow.checked()) drawLayerToGraphics(g, layers[1], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1], step);
+  if (ui.olivaShow.checked()) drawLayerToGraphics(g, layers[2], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2], step);
 
   g.blendMode(BLEND);
 
   saveCanvas(g.canvas, `pattern_${scale}x`, "png");
 }
 
-function drawLayerToGraphics(g, L, angleDeg, expoKValue, spacingValue, offset) {
+function drawLayerToGraphics(g, L, angleDeg, expoKValue, spacingValue, offset, step) {
   const vx = L.baseVx + offset.vx;
   const vy = L.baseVy + offset.vy;
 
@@ -544,9 +549,9 @@ function drawLayerToGraphics(g, L, angleDeg, expoKValue, spacingValue, offset) {
 
     g.beginShape();
 
-    for (let x = -width; x <= width; x += 10) g.vertex(x, baseY);
+    for (let x = -width; x <= width; x += step) g.vertex(x, baseY);
 
-    for (let x = width; x >= -width; x -= 10) {
+    for (let x = width; x >= -width; x -= step) {
       const nx = map(x, -width, width, -1, 1);
       const dist = Math.abs(nx - dynamicShift);
 
@@ -572,7 +577,9 @@ function exportSVG() {
   const bg = "#F5F5DC";
 
   const spacingBase = ui.spacing.value();
+  const step = ui.step.value();
   const dyn = computeAnim();
+
   const spacingFinal = spacingBase + dyn.spacingDelta;
   const angleFinal = baseAngleDeg + dyn.angleDelta;
   const expoKFinal = baseExpoK + dyn.expoKDelta;
@@ -592,6 +599,7 @@ function exportSVG() {
   for (const item of active) {
     const L = item.L;
     const off = item.off;
+
     const vx = L.baseVx + off.vx;
     const vy = L.baseVy + off.vy;
 
@@ -607,16 +615,14 @@ function exportSVG() {
       let d = "";
       let first = true;
 
-      for (let x = -svgW; x <= svgW; x += 10) {
+      for (let x = -svgW; x <= svgW; x += step) {
         const px = x;
         const py = baseY;
-        if (first) {
-          d += `M ${px} ${py} `;
-          first = false;
-        } else d += `L ${px} ${py} `;
+        if (first) { d += `M ${px} ${py} `; first = false; }
+        else d += `L ${px} ${py} `;
       }
 
-      for (let x = svgW; x >= -svgW; x -= 10) {
+      for (let x = svgW; x >= -svgW; x -= step) {
         const nx = map(x, -svgW, svgW, -1, 1);
         const dist = Math.abs(nx - dynamicShift);
 
@@ -637,15 +643,11 @@ function exportSVG() {
     }
 
     const blendStyle = useBlend ? ` style="mix-blend-mode:darken"` : "";
-    content += `
-      <g transform="translate(${svgW / 2} ${svgH / 2}) rotate(${angleFinal})"${blendStyle}>
-        ${paths}
-      </g>
-    `;
+    content += `<g transform="translate(${svgW / 2} ${svgH / 2}) rotate(${angleFinal})"${blendStyle}>${paths}</g>`;
   }
 
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+  const svg =
+`<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
   <rect width="100%" height="100%" fill="${bg}"/>
   ${content}
 </svg>`;
