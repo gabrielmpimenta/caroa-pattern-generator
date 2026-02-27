@@ -15,7 +15,7 @@ let animType = "Drift";
 let animFPS = 60;
 let renderSeconds = 10;
 
-let xStep = 4;
+const X_STEP = 4;
 
 let rec = { recorder: null, chunks: [], recording: false, url: null };
 
@@ -50,21 +50,19 @@ function setup() {
 function draw() {
   background("#F5F5DC");
 
-  spacing = ui.spacing.value();
-  xStep = ui.step.value();
-
+  const spacingBase = ui.spacing.value();
   const dyn = computeAnim();
 
-  const spacingFinal = spacing + dyn.spacingDelta;
+  const spacingFinal = spacingBase + dyn.spacingDelta;
   const angleFinal = baseAngleDeg + dyn.angleDelta;
   const expoKFinal = baseExpoK + dyn.expoKDelta;
 
   if (ui.blend.checked()) blendMode(window[blendName] ?? DARKEST);
   else blendMode(BLEND);
 
-  if (ui.terraShow.checked()) layers[0].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0], xStep);
-  if (ui.vinhoShow.checked()) layers[1].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1], xStep);
-  if (ui.olivaShow.checked()) layers[2].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2], xStep);
+  if (ui.terraShow.checked()) layers[0].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0]);
+  if (ui.vinhoShow.checked()) layers[1].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1]);
+  if (ui.olivaShow.checked()) layers[2].draw(angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2]);
 
   blendMode(BLEND);
 
@@ -79,7 +77,7 @@ class Layer {
     this.baseVy = 0.7;
   }
 
-  draw(angleDeg, expoKValue, spacingValue, offset, step) {
+  draw(angleDeg, expoKValue, spacingValue, offset) {
     const vx = this.baseVx + offset.vx;
     const vy = this.baseVy + offset.vy;
 
@@ -94,24 +92,20 @@ class Layer {
 
     for (let i = -numShapes; i < numShapes; i++) {
       const baseY = i * spacingValue;
-
       const linePos = map(i, -numShapes, numShapes, -1, 1);
       const dynamicShift = vx + linePos;
 
       beginShape();
 
-      for (let x = -width; x <= width; x += step) vertex(x, baseY);
+      for (let x = -width; x <= width; x += X_STEP) vertex(x, baseY);
 
-      for (let x = width; x >= -width; x -= step) {
+      for (let x = width; x >= -width; x -= X_STEP) {
         const nx = map(x, -width, width, -1, 1);
         const dist = abs(nx - dynamicShift);
-
         const influence = exp(-dist * dist * expoKValue);
         const curve = pow(influence, 1.15);
-
         const organic = organicForLine(i);
         const yOffset = curve * heightAmp * organic;
-
         vertex(x, baseY + yOffset);
       }
 
@@ -167,11 +161,6 @@ function buildPanelUI() {
       <div class="row">
         <label>Spacing</label>
         <div id="spacingSlot"></div>
-      </div>
-
-      <div class="row">
-        <label>Smooth</label>
-        <div id="stepSlot"></div>
       </div>
 
       <div class="row">
@@ -268,9 +257,6 @@ function buildPanelUI() {
 
   ui.spacing = createSlider(20, 100, spacing, 1);
   ui.spacing.parent(select("#spacingSlot"));
-
-  ui.step = createSlider(2, 16, xStep, 1);
-  ui.step.parent(select("#stepSlot"));
 
   ui.blend = createCheckbox(blendName, true);
   ui.blend.parent(select("#blendSlot"));
@@ -509,7 +495,6 @@ function exportPNGScaled(scale = 1) {
   g.background("#F5F5DC");
 
   const spacingBase = ui.spacing.value();
-  const step = ui.step.value();
   const dyn = computeAnim();
 
   const spacingFinal = spacingBase + dyn.spacingDelta;
@@ -519,16 +504,16 @@ function exportPNGScaled(scale = 1) {
   if (ui.blend.checked()) g.blendMode(window[blendName] ?? DARKEST);
   else g.blendMode(BLEND);
 
-  if (ui.terraShow.checked()) drawLayerToGraphics(g, layers[0], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0], step);
-  if (ui.vinhoShow.checked()) drawLayerToGraphics(g, layers[1], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1], step);
-  if (ui.olivaShow.checked()) drawLayerToGraphics(g, layers[2], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2], step);
+  if (ui.terraShow.checked()) drawLayerToGraphics(g, layers[0], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[0]);
+  if (ui.vinhoShow.checked()) drawLayerToGraphics(g, layers[1], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[1]);
+  if (ui.olivaShow.checked()) drawLayerToGraphics(g, layers[2], angleFinal, expoKFinal, spacingFinal, dyn.layerOffsets[2]);
 
   g.blendMode(BLEND);
 
   saveCanvas(g.canvas, `pattern_${scale}x`, "png");
 }
 
-function drawLayerToGraphics(g, L, angleDeg, expoKValue, spacingValue, offset, step) {
+function drawLayerToGraphics(g, L, angleDeg, expoKValue, spacingValue, offset) {
   const vx = L.baseVx + offset.vx;
   const vy = L.baseVy + offset.vy;
 
@@ -543,24 +528,20 @@ function drawLayerToGraphics(g, L, angleDeg, expoKValue, spacingValue, offset, s
 
   for (let i = -numShapes; i < numShapes; i++) {
     const baseY = i * spacingValue;
-
     const linePos = map(i, -numShapes, numShapes, -1, 1);
     const dynamicShift = vx + linePos;
 
     g.beginShape();
 
-    for (let x = -width; x <= width; x += step) g.vertex(x, baseY);
+    for (let x = -width; x <= width; x += X_STEP) g.vertex(x, baseY);
 
-    for (let x = width; x >= -width; x -= step) {
+    for (let x = width; x >= -width; x -= X_STEP) {
       const nx = map(x, -width, width, -1, 1);
       const dist = Math.abs(nx - dynamicShift);
-
       const influence = Math.exp(-dist * dist * expoKValue);
       const curve = Math.pow(influence, 1.15);
-
       const organic = organicForLine(i);
       const yOffset = curve * heightAmp * organic;
-
       g.vertex(x, baseY + yOffset);
     }
 
@@ -577,7 +558,6 @@ function exportSVG() {
   const bg = "#F5F5DC";
 
   const spacingBase = ui.spacing.value();
-  const step = ui.step.value();
   const dyn = computeAnim();
 
   const spacingFinal = spacingBase + dyn.spacingDelta;
@@ -608,27 +588,24 @@ function exportSVG() {
 
     for (let i = -numShapes; i < numShapes; i++) {
       const baseY = i * spacingFinal;
-
       const linePos = map(i, -numShapes, numShapes, -1, 1);
       const dynamicShift = vx + linePos;
 
       let d = "";
       let first = true;
 
-      for (let x = -svgW; x <= svgW; x += step) {
+      for (let x = -svgW; x <= svgW; x += X_STEP) {
         const px = x;
         const py = baseY;
         if (first) { d += `M ${px} ${py} `; first = false; }
         else d += `L ${px} ${py} `;
       }
 
-      for (let x = svgW; x >= -svgW; x -= step) {
+      for (let x = svgW; x >= -svgW; x -= X_STEP) {
         const nx = map(x, -svgW, svgW, -1, 1);
         const dist = Math.abs(nx - dynamicShift);
-
         const influence = Math.exp(-dist * dist * expoKFinal);
         const curve = Math.pow(influence, 1.15);
-
         const organic = organicForLine(i);
         const heightAmp = Math.abs(vy) * 300;
         const yOffset = curve * heightAmp * organic;
@@ -699,11 +676,9 @@ function renderVideoFixed() {
 
   rec.recorder.onstop = () => {
     rec.recording = false;
-
     const blob = new Blob(rec.chunks, { type: mt });
     rec.url = URL.createObjectURL(blob);
     mountPreview(rec.url);
-
     setStatus("Ready");
     btn.disabled = false;
 
@@ -715,9 +690,8 @@ function renderVideoFixed() {
   setStatus(`Recording ${renderSeconds}s…`);
 
   setTimeout(() => {
-    try {
-      rec.recorder.stop();
-    } catch (e) {
+    try { rec.recorder.stop(); }
+    catch (e) {
       rec.recording = false;
       setStatus("Error");
       btn.disabled = false;
